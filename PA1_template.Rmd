@@ -1,25 +1,176 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Coursera Peer Assessment 1"
+author: "Chris"
+date: "Tuesday, April 14, 2015"
+output: html_document
 ---
 
 
 ## Loading and preprocessing the data
 
+This section will detail the loading and processing of the Activity Monitoring Data Set. The dataset is first loaded in using the code below : 
 
+```{r, echo=TRUE, results ='hide'}
+dataSet <- read.csv("activity.csv", sep=",")
+```
+
+The data is then converted into the correct format : 
+
+```{r, echo=TRUE, results='hide'}
+dataSet[, 1] <- as.numeric(as.character(dataSet[, 1]))
+dataSet[, 3] <- as.numeric(as.character(dataSet[, 3]))
+```
+
+and a copy of the data set with the null steps removed is then created : 
+
+```{r, echo=TRUE}
+completeSet <- dataSet[!is.na(dataSet[, 1]),]
+```
 
 ## What is mean total number of steps taken per day?
 
+The section will go through the calculation and display of the mean total number of steps. Firstly, the total number of steps is calculated per day : 
 
+```{r, results='markup', echo=TRUE}
+aggregate(completeSet$steps, by=list(completeSet$date), FUN=sum)
+```
+
+And a Histogram below can be seen showing this 
+
+```{r, echo=TRUE}
+aggregateSteps <- aggregate(completeSet$steps, by=list(completeSet$date), FUN=sum)
+hist(aggregateSteps[, 2], main="Total Number of Steps Per Day", xlab="Steps Per Day", ylab="Number of Days")
+```
+
+Finally, the Mean total number of steps taken per day is : 
+
+```{r,echo=TRUE}
+mean(aggregateSteps[, 2])
+```
+
+And the Median total number of steps taken per day is : 
+
+```{r, echo=TRUE}
+median(aggregateSteps[, 2])
+```
 
 ## What is the average daily activity pattern?
 
+This section will look at the daily activity pattern. 
 
+The graph below looks at the time interval, vs the number of steps taken averaged accross all days. 
+
+```{r}
+aggregateInterval <- aggregate(completeSet$steps, by=list(completeSet$interval), FUN=mean)
+plot(aggregateInterval[, 1], aggregateInterval[, 2], type="l", main="Time Intervals vs Average Number of Steps", xlab="Interval", ylab="Number of Steps")
+```
+
+And the interval with the maximum average number of steps is : 
+
+```{r}
+aggregateInterval[order(-aggregateInterval$x),][1, 1]
+```
 
 ## Imputing missing values
 
+This section will look at dealing with missing values in the data.
 
+Firstly, the number of records with missing values is shown below : 
+
+```{r}
+nrow(dataSet[!complete.cases(dataSet), ])
+```
+
+To deal with the missing data shown above, we need to come up with a stratergy to fill in the missing values. 
+
+The strategy that will be used in this project will be to use the average value for the related interval.
+
+Firstly, complete and incomplete records are split out : 
+
+
+ | )
+```{r}
+completeCases <- dataSet[complete.cases(dataSet),]
+incompleteCases <- dataSet[!complete.cases(dataSet),]
+```
+
+Incomplete cases are then merged with the aggregated interval data created earlier : 
+
+```{r}
+mergedData <- merge(incompleteCases, aggregateInterval, by.x = "interval", by.y = "Group.1")
+```
+
+Each NULL step value is then set to the average steps value for that interval : 
+
+```{r}
+mergedData$steps <- mergedData$x
+```
+
+and the data is then merged back into the original completed data, and ordered
+
+```{r}
+mergedData <- mergedData[,c(2, 3, 1)]
+updatedData <- rbind(completeCases, mergedData)
+updatedData <- updatedData[order(updatedData$date),]
+```
+
+Now that the null values have been populated with data, the histogram generated in the first section (total number of steps per day) will be repeated and compared. Firstly, the total number of steps for each day is calculated : 
+
+```{r}
+aggregate(updatedData$steps, by=list(updatedData$date), FUN=sum)
+```
+
+and the histogram is then generated : 
+
+```{r, echo=TRUE}
+aggregateStepsU <- aggregate(updatedData$steps, by=list(updatedData$date), FUN=sum)
+hist(aggregateStepsU[, 2], main="Total Number of Steps Per Day", xlab="Steps Per Day", ylab="Number of Days")
+```
+
+The mean for the new data is :
+```{r}
+mean(aggregateStepsU[, 2])
+```
+
+and the median is : 
+
+```{r}
+median(aggregateStepsU[, 2])
+```
+
+If you then compare this to the original data set (See the "Mean Total Number of Steps" section)l, it can be seen that
+
+1. The mean has remained the same
+2. The median has slightly increased, although is very similar to the original data set. 
+
+The impact to the total number of steps per day by adding the missing values seems to have had little effect to the overall data set. The maximum frequency shown in the histogram has slightly increased, however the general spread of the data has remained the same. 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+This section will look into the differences in activity patterns between weekdays and weekends. 
+
+Firstly, we need to determine whether each day is a weekday or a weekend. 
+
+```{r}
+days <- weekdays(as.Date(updatedData$date))
+updatedData <- cbind(updatedData, days)
+
+
+dayName <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+dayLookup <- c("Weekday", "Weekday", "Weekday", "Weekday", "Weekday", "Weekend", "Weekend")
+weekLookup <- data.frame(dayName, dayLookup)
+
+mergedData <- merge(updatedData, weekLookup, by.x="days", by.y="dayName")
+```
+
+Now that the data frame has a factor, with the levels "Weekday" and "Weekend" (dayLookup) we can now aggregate the data and plot the graph. 
+
+A Panel Plot is shown below, detailing the average number of steps for each interval spread over all days, grouped by Weekdays and Weekends.
+
+```{r}
+
+aggregatedData <- aggregate(mergedData$steps, by=list(mergedData$interval, mergedData[, 5]),FUN=mean)
+
+library("lattice")
+xyplot(aggregatedData$x ~ aggregatedData$Group.1 | aggregatedData$Group.2, type="l", xlab="Time Interval", ylab="Number of Steps", main="Number of Steps in each Interval for Weekdays/Weekends")
+```
