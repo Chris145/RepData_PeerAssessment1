@@ -87,8 +87,6 @@ The strategy that will be used in this project will be to use the average value 
 
 Firstly, complete and incomplete records are split out : 
 
-
- | )
 ```{r}
 completeCases <- dataSet[complete.cases(dataSet),]
 incompleteCases <- dataSet[!complete.cases(dataSet),]
